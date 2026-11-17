@@ -1,4 +1,4 @@
-## CareerPilot
+## CareerBooster
 
 CareerPilot is an AI-assisted career platform: upload a resume, get analysis and job matching, track applications, prepare for interviews, and (on supported portals) run browser-based application auto-fill with optional saved portal sessions.
 
@@ -118,7 +118,7 @@ Docker Compose sets `DATABASE_URL` for the `api` service to the bundled `db` ser
 
 - `backend/README.md` — backend env, run commands, linting
 - `frontend/README.md` — Next.js dev server notes
-- `IEEEpaper.pdf` — academic paper for the project (code in this repo is separate from the paper’s license; clarify reuse with the authors if needed)
+
 
 ### Visitor / demo notes
 

@@ -1,8 +1,8 @@
-## Backend – CareerPilot API
+## Backend – CareerBooster API
 
 > The API surface is larger than this file describes (resume, analysis, jobs, applications, auth, and more). Run the server and open **`/docs`** for the live OpenAPI catalog, or see the repository root **`README.md`** for the full stack.
 
-FastAPI service that powers CareerPilot. Provides chat endpoints backed by Google Gemini via LangChain, with both standard and Server-Sent Events (SSE) streaming responses.
+FastAPI service that powers CareerBooster. Provides chat endpoints backed by Google Gemini via LangChain, with both standard and Server-Sent Events (SSE) streaming responses.
 
 ### Prerequisites
 
