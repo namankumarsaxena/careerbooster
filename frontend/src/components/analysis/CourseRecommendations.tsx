@@ -1,0 +1,166 @@
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ExternalLink, BookOpen, ThumbsUp, ThumbsDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/api";
+import { useFeedback, useSubmitFeedback, useDeleteFeedback } from "@/hooks/queries/useFeedback";
+import { cn } from "@/lib/utils";
+
+interface CourseRecommendationsProps {
+  userId: string | null;
+}
+
+interface CourseRecommendation {
+  title: string;
+  url: string;
+  description: string;
+  provider?: string;
+}
+
+interface CourseRecommendationsResponse {
+  courses?: CourseRecommendation[];
+  total?: number;
+  role_focus?: string;
+  message?: string;
+}
+
+export default function CourseRecommendations({
+  userId,
+}: CourseRecommendationsProps) {
+  const { data, isLoading } = useQuery<CourseRecommendationsResponse>({
+    queryKey: ["courses", "recommendations", userId],
+    queryFn: () =>
+      apiRequest<CourseRecommendationsResponse>(
+        `/courses/recommendations?user_id=${userId}&limit=10`
+      ),
+    enabled: !!userId,
+  });
+
+  const { feedbackMap } = useFeedback(userId, "course");
+  const submitFeedback = useSubmitFeedback();
+  const deleteFeedback = useDeleteFeedback();
+
+  const handleFeedback = (identifier: string, value: "helpful" | "not_helpful") => {
+    if (!userId) return;
+    const current = feedbackMap.get(identifier);
+    if (current === value) {
+      deleteFeedback.mutate({ user_id: userId, item_type: "course", item_identifier: identifier });
+    } else {
+      submitFeedback.mutate({ user_id: userId, item_type: "course", item_identifier: identifier, feedback: value });
+    }
+  };
+
+  const courses = data?.courses || [];
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-24 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BookOpen className="h-5 w-5" />
+          Course Recommendations
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {courses.length > 0 ? (
+          <div className="space-y-4">
+            {courses.map((course, idx) => (
+              <Card
+                key={idx}
+                className="hover:shadow-md transition-all duration-200 border-l-4 border-l-primary"
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-lg leading-tight">
+                          {course.title}
+                        </h3>
+                        {course.provider && (
+                          <Badge variant="outline" className="text-xs">
+                            {course.provider}
+                          </Badge>
+                        )}
+                      </div>
+                      {course.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                          {course.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-7 w-7", feedbackMap.get(course.url || course.title) === "helpful" && "text-green-600")}
+                        onClick={() => handleFeedback(course.url || course.title, "helpful")}
+                        title="Helpful"
+                      >
+                        <ThumbsUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-7 w-7", feedbackMap.get(course.url || course.title) === "not_helpful" && "text-red-500")}
+                        onClick={() => handleFeedback(course.url || course.title, "not_helpful")}
+                        title="Not helpful"
+                      >
+                        <ThumbsDown className="h-4 w-4" />
+                      </Button>
+                      {course.url && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          asChild
+                        >
+                          <a
+                            href={course.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+              <BookOpen className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              No course recommendations available. Try asking the chat agent for
+              course suggestions.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

@@ -1,0 +1,140 @@
+import re
+
+from dotenv import load_dotenv
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+load_dotenv(".env.local")
+
+
+class Models:
+    """Available Gemini models - use like settings.models.FLASH_LITE"""
+
+    FLASH_LITE = "gemini-2.5-flash-lite"
+    FLASH = "gemini-2.5-flash"
+    PRO = "gemini-2.5-pro"
+
+
+class Settings(BaseSettings):
+    app_name: str = Field(default="CareerPilot", description="Application name")
+    app_version: str = Field(default="0.1.0", description="Application version")
+
+    tavily_api_key: str = Field(..., description="Tavily API key")
+
+    # Job search API (JSearch from RapidAPI - optional, falls back to Tavily if not set)
+    jsearch_api_key: str | None = Field(
+        default=None, description="JSearch API key from RapidAPI (optional)"
+    )
+    jsearch_api_host: str = Field(
+        default="jsearch.p.rapidapi.com", description="JSearch API host"
+    )
+
+    google_api_key: str = Field(..., description="Google API key for Gemini")
+    model_name: str = Field(default=Models.FLASH, description="Gemini model to use")
+    temperature: float = Field(
+        default=0.0, ge=0.0, le=2.0, description="Model temperature (0-2)"
+    )
+
+    max_tokens: int | None = Field(
+        default=None, description="Maximum tokens to generate"
+    )
+    timeout: int = Field(default=30, ge=1, description="Request timeout in seconds")
+
+    # Database configuration
+    database_url: str = Field(
+        default="postgresql+psycopg2://postgres:postgres@localhost:5432/careerpilot",
+        description="SQLAlchemy Database URL",
+    )
+    pgvector_enabled: bool = Field(
+        default=True, description="Enable pgvector extension for embeddings"
+    )
+
+    # Cache & Vector Database configurations
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URL",
+    )
+    qdrant_url: str = Field(
+        default="http://localhost:6333",
+        description="Qdrant connection URL",
+    )
+    neo4j_uri: str = Field(
+        default="bolt://localhost:7687",
+        description="Neo4j connection URI",
+    )
+    neo4j_username: str = Field(
+        default="neo4j",
+        description="Neo4j username",
+    )
+    neo4j_password: str = Field(
+        default="password",
+        description="Neo4j password",
+    )
+
+    @property
+    def async_database_url(self) -> str:
+        """
+        Derive the async database URL using asyncpg from the standard database_url.
+        """
+        url = self.database_url
+
+        if url.startswith("postgresql+psycopg2://"):
+            return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    # CORS configuration
+    cors_origins: str = Field(
+        default="*",
+        description="CORS allowed origins (comma-separated, use * for all)",
+    )
+
+    # Authentication configuration
+    auth_required: bool = Field(
+        default=False,
+        description="When true, all protected routes require a valid JWT bearer token",
+    )
+    jwt_secret: str | None = Field(
+        default=None,
+        description="JWT signing secret used to validate bearer tokens",
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        description="JWT signing algorithm",
+    )
+
+    @field_validator("google_api_key")
+    @classmethod
+    def validate_google_api_key(cls, v: str) -> str:
+        """Validate Google API key format."""
+        if not v or len(v.strip()) == 0:
+            raise ValueError("Google API key cannot be empty")
+
+        # Basic format validation for Google API keys
+        if not re.match(r"^[A-Za-z0-9_-]{20,}$", v.strip()):
+            raise ValueError("Invalid Google API key format")
+
+        return v.strip()
+
+    @field_validator("model_name")
+    @classmethod
+    def validate_model_name(cls, v: str) -> str:
+        """Validate model name format while allowing forward-compatible Gemini IDs."""
+        model_name = v.strip()
+        if not model_name:
+            raise ValueError("Model name cannot be empty")
+        if not model_name.startswith("gemini-"):
+            raise ValueError("Model name must start with 'gemini-'")
+        return model_name
+
+    model_config = SettingsConfigDict(
+        env_file=".env.local",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",  # Ignore extra fields from env file
+    )
+
+
+settings = Settings()
+models = Models()
